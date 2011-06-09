@@ -169,6 +169,17 @@ Handle<Function> strip_fun(Handle<Value> fun)
         self.source.close()
         
 if __name__ == '__main__':
-    test = NodeModule("codegen.json", "binding")
+    jsfile = ""
+    bind = ""
+    for i in sys.argv:
+        if "json" in i:
+            jsfile = i
+        else:
+            bind = i
+
+    if jsfile == "" or bind == "":
+        test = NodeModule("codegen.json", "binding")
+    else:
+        test = NodeModule(jsfile, bind)
     test.WriteHeader()
     test.WriteSource()
