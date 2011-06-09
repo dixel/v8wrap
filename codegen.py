@@ -34,7 +34,7 @@ class NodeModule():
         ordinary = self.base['functions']['ordinary']
         for i in ordinary:
             self.header.write("//Ordinary function %s(...) - analogue of %s %s(%s)\n" % 
-                    (i, ordinary[i]['ret'], ordinary[i]['name'], ", ".join(ordinary[i]['args'])))
+                    (i, ordinary[i]['ret'], ordinary[i]['name'], ", ".join(["%s %s" % (k, j[1:]) for k, j in ordinary[i]['args'].items()])))
             self.header.write("static Handle<Value> %s (const Arguments &args);\n" % (i))
         #1}}}
         
@@ -53,8 +53,10 @@ class NodeModule():
         #{{{1callbacks
         cbs = self.base["functions"]["callback"]
         for i in cbs:
+            args = ["%s %s" % (typ, arg[1:]) for typ, arg in cbs[i]["args"].items()]
+            args.sort()
             self.header.write("%s %s(%s);\n" % 
-                    (cbs[i]["ret"], i, ", ".join(["%s %s" % (typ[1:], arg[1:]) for typ, arg in cbs[i]["args"].items()])))
+                    (cbs[i]["ret"], i, ", ".join([m[1:] for m in args])))
             self.header.write("struct ev_async ev_%s;\n" % (i))
         #1}}}
 
@@ -74,30 +76,31 @@ class NodeModule():
                 if arg in self.base['data']['internal']:
                     self.source.write("    unsigned long int %s = strip_id(args[%s]);\n" % 
                             ("id_" + arg, ordinary[i]["args"][arg][0]))
-                    callargs.append("_%s[%s]" % (self.base['data']['internal'][arg][6:], "id_" + arg))
+                    callargs.append("%s_%s[%s]" % (ordinary[i]["args"][arg][0], self.base['data']['internal'][arg][6:], "id_" + arg))
                 if arg == "const char *":
                     self.source.write("    const char *%s = *(V8STR(args[%s]));\n" % 
                             (ordinary[i]["args"][arg][1:], ordinary[i]["args"][arg][0]))
-                    callargs.append(ordinary[i]["args"][arg][1:])
+                    callargs.append(ordinary[i]["args"][arg])
                 if arg == "int":
                     self.source.write("    int %s = args[%s]->Int32Value();\n" % 
                             (ordinary[i]["args"][arg][1:], ordinary[i]["args"][arg][0]))
-                    callargs.append(ordinary[i]["args"][arg][1:])
+                    callargs.append(ordinary[i]["args"][arg])
                 if ordinary[i]["args"][arg][1:] in self.base['functions']['callback']:
                     self.source.write("    Persistent<Function> CB = Persistent<Function>::New(strip_fun(args[%s]));\n" % (ordinary[i]["args"][arg][0]))
-                    callargs.append(ordinary[i]["args"][arg][1:])
-                    callargs.append("&CB")
+                    callargs.append(ordinary[i]["args"][arg])
+                    callargs.append(str(int(ordinary[i]["args"][arg][0]) + 1) + "&CB")
+            callargs.sort()
             print callargs
             if ordinary[i]["ret"] in self.base['data']['internal']:
                 nname = self.base['data']['internal'][ordinary[i]["ret"]][6:]
                 print nname
                 self.source.write("    cnt_%s++;\n" % (nname))
-                self.source.write("    _%s[cnt_%s] = %s(%s);\n" % (nname, nname, ordinary[i]["name"], ", ".join(callargs)))
+                self.source.write("    _%s[cnt_%s] = %s(%s);\n" % (nname, nname, ordinary[i]["name"], ", ".join([m[1:] for m in callargs])))
                 self.source.write("    Local<Object> %s = Object::New();\n" % (nname))
                 self.source.write("    %s->Set(String::New(\"%s_id\"), Integer::New(cnt_%s));\n" % (nname, nname, nname))
                 self.source.write("    return %s;\n" % (nname))
             elif ordinary[i]["ret"] == "int":
-                self.source.write("    return Integer::New(%s(%s));\n" % (ordinary[i]["name"], ", ".join(callargs)))
+                self.source.write("    return Integer::New(%s(%s));\n" % (ordinary[i]["name"], ", ".join([m[1:] for m in callargs])))
 
             self.source.write("}\n")
         #1}}}
@@ -105,9 +108,27 @@ class NodeModule():
         #{{{1 callbacks
         cbs = self.base["functions"]["callback"]
         for i in cbs:
+            args = ["%s %s" % (typ, arg[1:]) for typ, arg in cbs[i]["args"].items()]
+            args.sort()
             self.source.write("%s %s(%s)\n{\n" % 
-                    (cbs[i]["ret"], i, ", ".join(["%s %s" % (typ[1:], cbs[i]["args"][typ][1:]) for typ in cbs[i]["args"]])))
-            self.source.write("//CURRENTLY ONLY YOUR CODE HERE-------------------------------\n")
+                    (cbs[i]["ret"], i, ", ".join([m[1:] for m in args])))
+            self.source.write("    //TO EDIT...-------------------------------\n")
+            print args
+            if "void * arg" in [m[1:] for m in args]:
+                self.source.write("    Persistent<Function> *callee = (Persistent<Function> *) arg;\n")
+                self.source.write("    Handle<Value> args[%s];\n" % (args.__len__()))
+                self.source.write("    Handle<Object> tmp = Object::New();\n")
+                for karg in cbs[i]["args"]:
+                    if karg[1:] == "void **":
+                        self.source.write("    int i = 0;\n")
+                        self.source.write("    Handle<Object> pars = Object::New();\n")
+                        self.source.write("    while (%s[i] != NULL)\n" % (cbs[i]["args"][karg][1:]))
+                        self.source.write("    {\n")
+                        self.source.write("        pars->Set(i, String::New((char *)%s[i]));\n" % (cbs[i]["args"][karg][1:]))
+                        self.source.write("        i++;\n    }\n")
+                        self.source.write("    args[%s] = pars;\n" % (karg[0]))
+                self.source.write("    Local<Function> fn = Function::Cast(*(*callee));\n")
+                self.source.write("    fn -> Call(tmp, %s, args);\n" % (args.__len__()))
             self.source.write("}\n")
         #1}}}
 

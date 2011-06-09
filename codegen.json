@@ -61,7 +61,14 @@
             "ret": "int",
             "name": "smtp_destroy_session",
             "args": {"smtp_session_t":"0session"}
+        },
+        "SetMessageCB":
+        {
+            "ret": "int",
+            "name": "smtp_set_messagecb",
+            "args": {"smtp_message_t":"0message", "smtp_messagecb_t": "1message_cb", "void *":"2arg"}
         }
+
     },
     "blocking":
     {},
@@ -75,7 +82,7 @@
         },
         "message_cb":
         {
-            "ret": "void",
+            "ret": "const char *",
             "name": "MessageCB",
             "args": {"0void **":"0ctx", "1int *":"1len", "2void *":"2arg"}
         }
