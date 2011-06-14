@@ -1,5 +1,7 @@
 #:v8wrap:#
-_simplify wrapping of your C functions to node.js_
+_simplify wrapping of your C functions to node.js_  
+This is just a prototype version build for testing on libesmtp.  
+This will be completely redisigned in future.  
 
 ### 1. Usage
         python codegen.py definition.json binding_source_name  

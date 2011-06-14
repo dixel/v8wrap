@@ -18,55 +18,55 @@
         {
             "ret": "smtp_message_t",
             "name": "smtp_add_message",
-            "args": {"smtp_session_t":"0session"}
+            "args": {"0smtp_session_t":"0session"}
         },
         "EnumerateMessages":
         {
             "ret": "int",
             "name": "smtp_enumerate_messages",
-            "args": {"smtp_session_t":"0session", "smtp_enumerate_messagecb_t":"1enum_cb", "void *":"2arg"}
+            "args": {"0smtp_session_t":"0session", "1smtp_enumerate_messagecb_t":"1enum_cb", "2void *":"2arg"}
         },
         "SetServer":
         {
             "ret": "int",
             "name": "smtp_set_server",
-            "args": {"smtp_session_t":"0session", "const char *":"1hostport"}
+            "args": {"0smtp_session_t":"0session", "1const char *":"1hostport"}
         },
         "SetHostname":
         {
             "ret": "int",
             "name": "smtp_set_hostname",
-            "args": {"smtp_session_t":"0session", "const char *":"1hostname"}
+            "args": {"0smtp_session_t":"0session", "1const char *":"1hostname"}
         },
         "SetReversePath":
         {
             "ret": "int",
             "name": "smtp_set_reverse_path",
-            "args": {"smtp_message_t":"0message", "const char *":"1mailbox"}
+            "args": {"0smtp_message_t":"0message", "1const char *":"1mailbox"}
         },
         "AddRecipient":
         {
             "ret": "smtp_recipient_t",
             "name": "smtp_add_recipient",
-            "args": {"smtp_message_t":"0message", "const char *":"1mailbox"}
+            "args": {"0smtp_message_t":"0message", "1const char *":"1mailbox"}
         },
         "StartSession":
         {
             "ret": "int",
             "name": "smtp_start_session",
-            "args": {"smtp_session_t":"0session"}
+            "args": {"0smtp_session_t":"0session"}
         },
         "DestroySession":
         {
             "ret": "int",
             "name": "smtp_destroy_session",
-            "args": {"smtp_session_t":"0session"}
+            "args": {"0smtp_session_t":"0session"}
         },
         "SetMessageCB":
         {
             "ret": "int",
             "name": "smtp_set_messagecb",
-            "args": {"smtp_message_t":"0message", "smtp_messagecb_t": "1message_cb", "void *":"2arg"}
+            "args": {"0smtp_message_t":"0message", "1smtp_messagecb_t": "1message_cb", "2void *":"2arg"}
         }
 
     },

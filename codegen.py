@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 #! -*-coding: utf-8 -*-
-
 import sys
 import os
 import re
@@ -14,9 +13,20 @@ class NodeModule():
         self.sourcename = sourcename
         self.header = file("%s.h" % (sourcename), 'w')
         self.source = file("%s.cc" % (sourcename), 'w')
+        print self.base
+
+    def WriteSource(self):
+        self.source.write("#include \"%s.h\"\n" % (self.sourcename))
+        self.WriteHeader()
+        self.WriteOrdinary()
+        self.WriteCallbacks()
+        self.WriteUseful()
+        self.WriteMain()
+        self.source.close()
 
     def WriteHeader(self): 
-        #{{{1include/define
+#{{{1 header
+        #{{{2include/define
         self.header.write("#define V8STR String::AsciiValue\n")
         self.header.write("#include <node.h>\n")
         self.header.write("#include <stdio.h>\n")
@@ -28,29 +38,30 @@ class NodeModule():
         for i in self.base['include']:
             self.header.write("#include <%s>\n" % i)
         self.header.write("using namespace v8;\n")
-        #1}}}
+        #2}}}
 
-        #{{{1 ordinary functions conversion
+        #{{{2 ordinary functions conversion
         ordinary = self.base['functions']['ordinary']
         for i in ordinary:
             self.header.write("//Ordinary function %s(...) - analogue of %s %s(%s)\n" % 
-                    (i, ordinary[i]['ret'], ordinary[i]['name'], ", ".join(["%s %s" % (k, j[1:]) for k, j in ordinary[i]['args'].items()])))
+                    (i, ordinary[i]['ret'], ordinary[i]['name'], ", ".join(["%s %s" % (k[1:], j[1:]) for k, j in ordinary[i]['args'].items()])))
             self.header.write("static Handle<Value> %s (const Arguments &args);\n" % (i))
-        #1}}}
+        #2}}}
         
-        #{{{1data implementation
+        #{{{2data implementation
         for i in self.base["data"]["internal"]:
-            self.header.write("%s _%s[%s];\n" % (i, self.base["data"]["internal"][i][6:], self.base["data"]["internal"][i][0:6].strip()))
-            #self.header.write("Persistent<Object> %s[%s];\n" % (self.base["data"]["internal"][i][6:], self.base["data"]["internal"][i][0:6].strip()))
+            if "struct" in i:
+                self.header.write("typedef %s* _%s;\n" % (i, i[7:]))
+            self.header.write("_%s _%s[%s];\n" % (i[7:], self.base["data"]["internal"][i][6:], self.base["data"]["internal"][i][0:6].strip()))
             self.header.write("unsigned long int cnt_%s;\n" % (self.base["data"]["internal"][i][6:]))
-        #1}}}
+        #2}}}
 
-        #{{{1useful functions just for me
+        #{{{2useful functions just for me
         self.header.write("int strip_id(Handle<Value> obj);\n")
         self.header.write("Handle<Function> strip_fun(Handle<Value> obj);\n")
-        #1}}}
+        #2}}}
 
-        #{{{1callbacks
+        #{{{2callbacks
         cbs = self.base["functions"]["callback"]
         for i in cbs:
             args = ["%s %s" % (typ, arg[1:]) for typ, arg in cbs[i]["args"].items()]
@@ -58,13 +69,11 @@ class NodeModule():
             self.header.write("%s %s(%s);\n" % 
                     (cbs[i]["ret"], i, ", ".join([m[1:] for m in args])))
             self.header.write("struct ev_async ev_%s;\n" % (i))
-        #1}}}
-
+        #2}}}
+#1}}}
         self.header.close()
 
-    def WriteSource(self):
-        self.source.write("#include \"%s.h\"\n" % (self.sourcename))
-
+    def WriteOrdinary(self):
         #{{{1ordinary functions
         ordinary = self.base['functions']['ordinary']
         for i in ordinary:
@@ -73,15 +82,24 @@ class NodeModule():
             callargs = []
             callid = ""
             for arg in ordinary[i]["args"]:
-                if arg in self.base['data']['internal']:
+                nname = arg[1:]
+                if (nname in self.base['data']['internal']):
                     self.source.write("    unsigned long int %s = strip_id(args[%s]);\n" % 
-                            ("id_" + arg, ordinary[i]["args"][arg][0]))
-                    callargs.append("%s_%s[%s]" % (ordinary[i]["args"][arg][0], self.base['data']['internal'][arg][6:], "id_" + arg))
-                if arg == "const char *":
+                            ("id_" + arg[1:], ordinary[i]["args"][arg][0]))
+                    callargs.append("%s_%s[%s]" % (ordinary[i]["args"][arg][0], self.base['data']['internal'][arg[1:]][6:], "id_" + arg[1:]))
+                if ("struct " + nname in self.base['data']['internal']):
+                    self.source.write("    unsigned long int %s = strip_id(args[%s]);\n" % 
+                            ("id_" + arg[1:], ordinary[i]["args"][arg][0]))
+                    callargs.append("%s_%s[%s]" % (ordinary[i]["args"][arg][0], self.base['data']['internal']["struct "+arg[1:]][6:], "id_" + arg[1:]))
+                if nname == "const char *":
                     self.source.write("    const char *%s = *(V8STR(args[%s]));\n" % 
                             (ordinary[i]["args"][arg][1:], ordinary[i]["args"][arg][0]))
                     callargs.append(ordinary[i]["args"][arg])
-                if arg == "int":
+                if nname == "char *":
+                    self.source.write("    char *%s = *(V8STR(args[%s]));\n" % 
+                            (ordinary[i]["args"][arg][1:], ordinary[i]["args"][arg][0]))
+                    callargs.append(ordinary[i]["args"][arg])
+                if nname == "int":
                     self.source.write("    int %s = args[%s]->Int32Value();\n" % 
                             (ordinary[i]["args"][arg][1:], ordinary[i]["args"][arg][0]))
                     callargs.append(ordinary[i]["args"][arg])
@@ -90,14 +108,20 @@ class NodeModule():
                     callargs.append(ordinary[i]["args"][arg])
                     callargs.append(str(int(ordinary[i]["args"][arg][0]) + 1) + "&CB")
             callargs.sort()
-            print callargs
-            if ordinary[i]["ret"] in self.base['data']['internal']:
+#            print callargs
+            if (ordinary[i]["ret"] in self.base['data']['internal']):
                 nname = self.base['data']['internal'][ordinary[i]["ret"]][6:]
-                print nname
                 self.source.write("    cnt_%s++;\n" % (nname))
                 self.source.write("    _%s[cnt_%s] = %s(%s);\n" % (nname, nname, ordinary[i]["name"], ", ".join([m[1:] for m in callargs])))
                 self.source.write("    Local<Object> %s = Object::New();\n" % (nname))
-                self.source.write("    %s->Set(String::New(\"%s_id\"), Integer::New(cnt_%s));\n" % (nname, nname, nname))
+                self.source.write("    %s->Set(String::New(\"objid\"), Integer::New(cnt_%s));\n" % (nname, nname))
+                self.source.write("    return %s;\n" % (nname))
+            if ("struct " + ordinary[i]["ret"] in self.base['data']['internal']):
+                nname = self.base['data']['internal']["struct " + ordinary[i]["ret"]][6:]
+                self.source.write("    cnt_%s++;\n" % (nname))
+                self.source.write("    _%s[cnt_%s] = %s(%s);\n" % (nname, nname, ordinary[i]["name"], ", ".join([m[1:] for m in callargs])))
+                self.source.write("    Local<Object> %s = Object::New();\n" % (nname))
+                self.source.write("    %s->Set(String::New(\"objid\"), Integer::New(cnt_%s));\n" % (nname, nname))
                 self.source.write("    return %s;\n" % (nname))
             elif ordinary[i]["ret"] == "int":
                 self.source.write("    return Integer::New(%s(%s));\n" % (ordinary[i]["name"], ", ".join([m[1:] for m in callargs])))
@@ -105,6 +129,7 @@ class NodeModule():
             self.source.write("}\n")
         #1}}}
 
+    def WriteCallbacks(self):
         #{{{1 callbacks
         cbs = self.base["functions"]["callback"]
         for i in cbs:
@@ -132,6 +157,7 @@ class NodeModule():
             self.source.write("}\n")
         #1}}}
 
+    def WriteUseful(self):
         #{{{1 useful functions just for me
         self.source.write("""\
 int strip_id(Handle<Value> obj)
@@ -158,15 +184,15 @@ Handle<Function> strip_fun(Handle<Value> fun)
 }\n""")
         #1}}}
 
+    def WriteMain(self):
         #{{{1 main module
         self.source.write("extern \"C\" void\ninit (Handle<Object> target)\n{\n")
         self.source.write("HandleScope scope;\n")
-        for i in ordinary:
+        for i in self.base["functions"]["ordinary"]:
             self.source.write("    target->Set(String::NewSymbol(\"%s\"), FunctionTemplate::New(%s)->GetFunction());\n" % (i, i))
         self.source.write("}")
         #1}}}
         
-        self.source.close()
         
 if __name__ == '__main__':
     jsfile = ""
@@ -181,5 +207,4 @@ if __name__ == '__main__':
         test = NodeModule("codegen.json", "binding")
     else:
         test = NodeModule(jsfile, bind)
-    test.WriteHeader()
     test.WriteSource()
