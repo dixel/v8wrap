@@ -27,7 +27,7 @@ class NodeModule():
     def WriteHeader(self): 
 #{{{1 header
         #{{{2include/define
-        self.header.write("#define V8STR String::AsciiValue\n")
+        self.header.write("#define V8STR String::Utf8Value\n")
         self.header.write("#include <node.h>\n")
         self.header.write("#include <stdio.h>\n")
         self.header.write("#include <string.h>\n")
@@ -95,12 +95,16 @@ class NodeModule():
                             ("id_" + arg[1:], ordinary[i]["args"][arg][0]))
                     callargs.append("%s_%s[%s]" % (ordinary[i]["args"][arg][0], self.base['data']['internal']["struct "+arg[1:]][6:], "id_" + arg[1:]))
                 if nname == "const char *":
-                    self.source.write("    const char *%s = *(V8STR(args[%s]));\n" % 
+                    self.source.write("    V8STR t_%s(args[%s]);\n" % 
                             (ordinary[i]["args"][arg][1:], ordinary[i]["args"][arg][0]))
+                    self.source.write("    const char *%s = *t_%s;\n" %
+                            (ordinary[i]["args"][arg][1:], ordinary[i]["args"][arg][1:]))
                     callargs.append(ordinary[i]["args"][arg])
                 if nname == "char *":
-                    self.source.write("    char *%s = *(V8STR(args[%s]));\n" % 
+                    self.source.write("    V8STR t_%s(args[%s]);\n" % 
                             (ordinary[i]["args"][arg][1:], ordinary[i]["args"][arg][0]))
+                    self.source.write("    char *%s = *t_%s;\n" %
+                            (ordinary[i]["args"][arg][1:], ordinary[i]["args"][arg][1:]))
                     callargs.append(ordinary[i]["args"][arg])
                 if nname == "int":
                     self.source.write("    int %s = args[%s]->Int32Value();\n" % 
@@ -119,7 +123,7 @@ class NodeModule():
                 self.source.write("    Local<Object> %s = Object::New();\n" % (nname))
                 self.source.write("    %s->Set(String::New(\"objid\"), Integer::New(cnt_%s));\n" % (nname, nname))
                 self.source.write("    return %s;\n" % (nname))
-            if ("struct " + ordinary[i]["ret"] in self.base['data']['internal']):
+            elif ("struct " + ordinary[i]["ret"] in self.base['data']['internal']):
                 nname = self.base['data']['internal']["struct " + ordinary[i]["ret"]][6:]
                 self.source.write("    cnt_%s++;\n" % (nname))
                 self.source.write("    _%s[cnt_%s] = %s(%s);\n" % (nname, nname, ordinary[i]["name"], ", ".join([m[1:] for m in callargs])))
@@ -128,6 +132,8 @@ class NodeModule():
                 self.source.write("    return %s;\n" % (nname))
             elif ordinary[i]["ret"] == "int":
                 self.source.write("    return Integer::New(%s(%s));\n" % (ordinary[i]["name"], ", ".join([m[1:] for m in callargs])))
+            elif ordinary[i]["ret"] == "char *":
+                self.source.write("    return String::New(%s(%s));\n" % (ordinary[i]["name"], ", ".join([m[1:] for m in callargs])))
 
             self.source.write("}\n")
         #1}}}
