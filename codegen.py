@@ -52,8 +52,11 @@ class NodeModule():
         for i in self.base["data"]["internal"]:
             if "struct" in i:
                 self.header.write("typedef %s* _%s;\n" % (i, i[7:]))
-            self.header.write("_%s _%s[%s];\n" % (i[7:], self.base["data"]["internal"][i][6:], self.base["data"]["internal"][i][0:6].strip()))
-            self.header.write("unsigned long int cnt_%s;\n" % (self.base["data"]["internal"][i][6:]))
+                self.header.write("_%s _%s[%s];\n" % (i[7:], self.base["data"]["internal"][i][6:], self.base["data"]["internal"][i][0:6].strip()))
+                self.header.write("unsigned long int cnt_%s;\n" % (self.base["data"]["internal"][i][6:]))
+            else:
+                self.header.write("%s _%s[%s];\n" % (i, self.base["data"]["internal"][i][6:], self.base["data"]["internal"][i][0:6].strip()))
+                self.header.write("unsigned long int cnt_%s;\n" % (self.base["data"]["internal"][i][6:]))
         #2}}}
 
         #{{{2useful functions just for me
