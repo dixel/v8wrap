@@ -27,7 +27,22 @@ class NodeModule():
     def WriteHeader(self): 
 #{{{1 header
         #{{{2include/define
+        self.header.write("""
+/*! \mainpage ____.JS - a node.js binding to ____ library.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+*/\n""")
         self.header.write("#define V8STR String::Utf8Value\n")
+        self.header.write("#define USE_SSL\n")
         self.header.write("#include <node.h>\n")
         self.header.write("#include <stdio.h>\n")
         self.header.write("#include <string.h>\n")
@@ -39,15 +54,24 @@ class NodeModule():
             self.header.write("#include <%s>\n" % i)
         self.header.write("using namespace v8;\n")
         #2}}}
+        self.header.write("/*!\\file %s.h*/\n" % self.sourcename)
+        #{{{2additional strings
+        if 'addict' in self.base:
+            for i in self.base['addict']:
+                self.header.write(i+";\n")
+        #2}}}
 
         #{{{2 ordinary functions conversion
         ordinary = self.base['functions']['ordinary']
         for i in ordinary:
-            self.header.write("//Ordinary function %s(...) - analogue of %s %s(%s)\n" % 
+            self.header.write("/*! \\fn static Handle<Value> %s (const Arguments &args);\n" % (i))
+            self.header.write("* \\brief Ordinary function %s(...) - analogue of %s %s(%s)\n" % 
                     (i, ordinary[i]['ret'], ordinary[i]['name'], ", ".join(["%s %s" % (k[1:], j[1:]) for k, j in ordinary[i]['args'].items()])))
+            self.header.write("*/\n");
             self.header.write("static Handle<Value> %s (const Arguments &args);\n" % (i))
         #2}}}
         
+        self.header.write("///! \\cond\n");
         #{{{2data implementation
         for i in self.base["data"]["internal"]:
             if "struct" in i:
@@ -72,6 +96,7 @@ class NodeModule():
             self.header.write("%s %s(%s);\n" % 
                     (cbs[i]["ret"], i, ", ".join([m[1:] for m in args])))
             self.header.write("struct ev_async ev_%s;\n" % (i))
+        self.header.write("///! \\endcond\n");
         #2}}}
 #1}}}
         self.header.close()
@@ -134,6 +159,8 @@ class NodeModule():
                 self.source.write("    return Integer::New(%s(%s));\n" % (ordinary[i]["name"], ", ".join([m[1:] for m in callargs])))
             elif ordinary[i]["ret"] == "char *":
                 self.source.write("    return String::New(%s(%s));\n" % (ordinary[i]["name"], ", ".join([m[1:] for m in callargs])))
+            elif ordinary[i]["ret"] == "void":
+                self.source.write("    %s(%s);\n" % (ordinary[i]["name"], ", ".join([m[1:] for m in callargs])))
 
             self.source.write("}\n")
         #1}}}
